@@ -26,7 +26,6 @@ class Collector:
         self.__group = {}
         self.__all_libs = set()
         self.__unique = set()
-        self.__print_separator = "================================>"
 
         self.__collect()
 
@@ -53,14 +52,6 @@ class Collector:
         if not self.__lib:
             raise LibNotDefinedError()
         return self.__unique.difference(self.__all_libs)
-
-    @property
-    def separator(self):
-        return self.__print_separator
-
-    @separator.setter
-    def separator(self, sep):
-        self.__print_separator = sep
 
     @staticmethod
     def __execute_shell(command):
@@ -129,34 +120,51 @@ class Collector:
         if self.__lib:
             self.__collect_libs()
 
+
+class CollectorPrinter:
+    def __init__(self, collector):
+        self.__c = collector
+        self.__print_separator = "================================>"
+
+    @property
+    def separator(self):
+        return self.__print_separator
+
+    @separator.setter
+    def separator(self, sep):
+        self.__print_separator = sep
+
     def __print_deps(self, description, deps):
-        print("{0}: {1}".format(description, self.__print_separator))
+        print("{0}: {1}".format(description, self.separator))
         for dep in sorted(deps):
             print("\t\t{0}".format(dep))
 
     def print(self, all_flag, group_flag):
         if group_flag:
-            for lib, deps in self.__group.items():
+            for lib, deps in self.__c.group.items():
                 self.__print_deps("\ndependencies for {0}".format(lib), deps)
 
         if all_flag:
-            self.__print_deps("\nall dependencies", self.__unique)
+            self.__print_deps("\nall dependencies", self.__c.unique)
 
-        if self.__not_found:
-            for lib, deps in self.__not_found.items():
+        if self.__c.not_found:
+            for lib, deps in self.__c.not_found.items():
                 self.__print_deps("\nnot found dependencies for {0}".format(lib), deps)
         else:
             print("\nno missing libs found...")
 
-        if self.external:
-            self.__print_deps("\nexternal dependecies", self.external)
-        else:
-            print("\nno external libs found...")
+        try:
+            if self.__c.external:
+                self.__print_deps("\nexternal dependecies", self.__c.external)
+            else:
+                print("\nno external libs found...")
 
-        if self.useless:
-            self.__print_deps("\nusless dependencies", self.useless)
-        else:
-            print("\nno useless libs found...")
+            if self.__c.useless:
+                self.__print_deps("\nusless dependencies", self.__c.useless)
+            else:
+                print("\nno useless libs found...")
+        except LibNotDefinedError:
+            print("\nno check for external or useless libs...")
 
 
 def main():
@@ -172,7 +180,7 @@ def main():
     start_time = time.time()
 
     c = Collector(args.root, args.lib_path)
-    c.print(args.all, args.group)
+    CollectorPrinter(c).print(args.all, args.group)
 
     end_time = time.time()
     print("script execution: {0} ms".format((end_time - start_time) * 1000))
